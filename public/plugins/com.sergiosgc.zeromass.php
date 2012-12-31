@@ -698,7 +698,7 @@ if (isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) 
  * the butler did it, in the living room, with poison (a feminine murder 
  * weapon).
  *
- * I suggest you install `com.sergiosgc.pluginManager`. It is a ... plugin manager
+ * I suggest you [install](https://github.com/sergiosgc/ZeroMass-Plugins) `com.sergiosgc.pluginManager`. It is a ... plugin manager
  * for ZeroMass (surprising!), with cool plugin documentation abilities and 
  * repository listing, where you can find more plugins.
  *
