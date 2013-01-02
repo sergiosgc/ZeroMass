@@ -109,7 +109,7 @@ class ZeroMass {
              * @return mixed Either the exception, if it was unhandled, or false if it is to be considered handled
              */
             $e = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.pluginInit.exception', $e);
-            if ($e) throw new ZeroMassException($e);
+            if ($e) throw new ZeroMassException(null, 0, $e);
         }
     }/*}}}*/
     public function register_callback($tag, $callable, $priority = 10) {/*{{{*/
@@ -182,7 +182,7 @@ class ZeroMass {
              * @return mixed Either the exception, if it was unhandled, or false if it is to be considered handled
              */
             $e = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.answerPage.exception', $e);
-            if ($e) throw new ZeroMassException($e);
+            if ($e) throw new ZeroMassException(null, 0, $e);
         }
     }/*}}}*/
 }
