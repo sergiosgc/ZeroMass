@@ -12,6 +12,7 @@ class ZeroMass {
     public $privateDir = null;
     public $publicDir = null;
     public $pluginDir = null;
+    protected $exceptionRecurseSemaphore = false;
     public function __construct() {/*{{{*/
         ZeroMass::$singleton = $this;
         /*#
@@ -119,6 +120,10 @@ class ZeroMass {
         $this->callbacks[$tag][$priority][] = $callable;
         ksort($this->callbacks[$tag], SORT_NUMERIC);
     }/*}}}*/
+    public function do_callback_array($tag, $args) {/*{{{*/
+        array_unshift($args, $tag);
+        return call_user_func_array(array($this, 'do_callback'), $args);
+    }/*}}}*/
     public function do_callback($tag) {/*{{{*/
         $arguments = func_get_args();
         array_shift($arguments); // Get rid of the $tag argument
@@ -126,7 +131,32 @@ class ZeroMass {
         if (!isset($this->callbacks[$tag])) return $result;
         foreach ($this->callbacks[$tag] as $priority => $callbackArray) foreach ($callbackArray as $callback) {
             $arguments[0] = $result;
-            $result = call_user_func_array($callback, $arguments);
+            try {
+                $result = call_user_func_array($callback, $arguments);
+            } catch (\Exception $e) {
+                if ($this->exceptionRecurseSemaphore) throw new ZeroMassException($e);
+                $exceptionArgs = $arguments;
+                array_unshift($exceptionArgs, $tag);
+                array_unshift($exceptionArgs, $e);
+                $this->exceptionRecurseSemaphore = true;
+                /*#
+                 * A callback threw an exception. Allow plugins to handle the exception.
+                 *
+                 * If a plugin can handle the exception, it should do so by
+                 * filtering out the exceptio argument and replacing it with
+                 * a result that can be used to continue processing the hook.
+                 *
+                 * Beyond the exception and the original hook tag, this hook 
+                 * receives all arguments passed on to the original hook
+                 *
+                 * @param Exception The thrown exception
+                 * @return mixed Either an exception or a result to be used to continue processing
+                 */
+                $e = \ZeroMass::getInstance()->do_callback_array('com.sergiosgc.zeromass.hook.exception', $exceptionArgs);
+                $this->exceptionRecurseSemaphore = false;
+                if ($e instanceof \Exception) throw new ZeroMassException($e);
+                $result = $e;
+            }
         }
         return $result;
     }/*}}}*/
