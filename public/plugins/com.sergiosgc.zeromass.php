@@ -9,6 +9,7 @@ class ZeroMass {
     public static $singleton = null;
     public $callbacks = array();
     public $apiSlots = array();
+    public $privateDir = null;
     public $publicDir = null;
     public $pluginDir = null;
     public function __construct() {/*{{{*/
@@ -40,6 +41,16 @@ class ZeroMass {
          * @return string Full path to the application public directory
          */
         $this->publicDir = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.appPublicDir', realpath(dirname(dirname(dirname(__FILE__)))));
+        /*#
+         * Allow for the application private dir to be altered
+         *
+         * The application private directory is usually a directory named `private`
+         * inside the application root directory.
+         *
+         * @param string Full path to the application private directory
+         * @return string Full path to the application private directory
+         */
+        $this->privateDir = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.appPrivateDir', realpath($this->appRootDir . '/private'));
         /*#
          * Allow for the application plugin dir to be altered
          *
