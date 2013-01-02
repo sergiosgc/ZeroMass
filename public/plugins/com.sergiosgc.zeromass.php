@@ -40,7 +40,7 @@ class ZeroMass {
          * @param string Full path to the application public directory
          * @return string Full path to the application public directory
          */
-        $this->publicDir = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.appPublicDir', realpath(dirname(dirname(dirname(__FILE__)))));
+        $this->publicDir = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.appPublicDir', realpath($this->appRootDir . '/public'));
         /*#
          * Allow for the application private dir to be altered
          *
