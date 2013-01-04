@@ -74,13 +74,19 @@ class ZeroMass {
         if (is_null(ZeroMass::$singleton)) ZeroMass::$singleton = new ZeroMass();
         return ZeroMass::$singleton;
     }/*}}}*/
-    public function loadPlugins() {/*{{{*/
-        $pluginDirHandle = opendir($this->pluginDir);
-        if ($pluginDirHandle === false) throw new ZeroMassStartupException('Unable to open plugin directory: ' . $this->pluginDir);
+    public function loadPlugins($pluginDir = null) {/*{{{*/
+        $subPluginInit = true;
+        if (is_null($pluginDir)) {
+            $pluginDir = $this->pluginDir;
+            $subPluginInit = false;
+        }
+
+        $pluginDirHandle = opendir($pluginDir);
+        if ($pluginDirHandle === false) throw new ZeroMassStartupException('Unable to open plugin directory: ' . $pluginDir);
         while (($file = readdir($pluginDirHandle)) !== false) {
             if ($file == '.' || $file == '..') continue;
 
-            $fullPath = $this->pluginDir . DIRECTORY_SEPARATOR . $file;
+            $fullPath = $pluginDir . DIRECTORY_SEPARATOR . $file;
             if (is_dir($fullPath)) {
                 $tentativePluginFile = $fullPath . DIRECTORY_SEPARATOR . $file . '.php';
                 if (is_file($tentativePluginFile) && is_readable($tentativePluginFile)) require_once($tentativePluginFile);
