@@ -94,57 +94,89 @@ class ZeroMass {
                 if (strlen($file) > 4 && substr($file, -4) == '.php') require_once($fullPath);
             }
         }
-        try {
-            /*#
-             * Allow plugins to initalize themselves
-             *
-             * This is the typical hook for plugins to initialize themselves and
-             * fire hooks annoucing the availability of their services. For example,
-             * a database plugin would likely connect to the database and fire a 
-             * `com.example.db.ready` hook.
-             */
-            \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.pluginInit');
-        } catch (Exception $e) {
-            /**
-             * An exception was thrown when initializing plugins
-             *
-             * This hook allows plugins to handle exceptions thrown when other plugins
-             * initialize themselves during processing of the 
-             * `com.sergiosgc.zeromass.pluginInit` hook.
-             *
-             * @param Exception The exception that was thrown
-             * @return mixed Either the exception, if it was unhandled, or false if it is to be considered handled
-             */
-            $e = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.pluginInit.exception', $e);
-            if ($e) throw new ZeroMassException(null, 0, $e);
+        if ($subPluginInit) {
+            try {
+                /*#
+                 * Allow sub plugins to initalize themselves
+                 *
+                 * This is the typical hook for plugins to initialize themselves and
+                 * fire hooks annoucing the availability of their services. 
+                 * This hook is called when loading plugins other than the 
+                 * default ZeroMass plugins (typically when a plugin uses 
+                 * ZeroMass as a sub plugin loader)
+                 * 
+                 * @param string The pluginDir passed as a param to ZeroMass::loadPlugins
+                 */
+                \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.subPluginInit', $pluginDir);
+            } catch (Exception $e) {
+                /**
+                 * An exception was thrown when initializing plugins
+                 *
+                 * This hook allows plugins to handle exceptions thrown when other plugins
+                 * initialize themselves during processing of the 
+                 * `com.sergiosgc.zeromass.subPluginInit` hook.
+                 *
+                 * @param Exception The exception that was thrown
+                 * @param string The pluginDir passed as a param to ZeroMass::loadPlugins
+                 * @return mixed Either the exception, if it was unhandled, or false if it is to be considered handled
+                 */
+                $e = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.subPluginInit.exception', $e, $pluginDir);
+                if ($e) throw new ZeroMassException(null, 0, $e);
+            }
+        } else {
+            try {
+                /*#
+                 * Allow plugins to initalize themselves
+                 *
+                 * This is the typical hook for plugins to initialize themselves and
+                 * fire hooks annoucing the availability of their services. For example,
+                 * a database plugin would likely connect to the database and fire a 
+                 * `com.example.db.ready` hook.
+                 */
+                \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.pluginInit');
+            } catch (Exception $e) {
+                /**
+                 * An exception was thrown when initializing plugins
+                 *
+                 * This hook allows plugins to handle exceptions thrown when other plugins
+                 * initialize themselves during processing of the 
+                 * `com.sergiosgc.zeromass.pluginInit` hook.
+                 *
+                 * @param Exception The exception that was thrown
+                 * @return mixed Either the exception, if it was unhandled, or false if it is to be considered handled
+                 */
+                $e = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.pluginInit.exception', $e);
+                if ($e) throw new ZeroMassException(null, 0, $e);
+            }
         }
     }/*}}}*/
+
     public function register_callback($tag, $callable, $priority = 10) {/*{{{*/
         if (!is_callable($callable)) throw new ZeroMassException('Non-callable passed as $callable argument');
-        if (!isset($this->callbacks[$tag])) $this->callbacks[$tag] = array();
-        if (!isset($this->callbacks[$tag][$priority])) $this->callbacks[$tag][$priority] = array();
-        $this->callbacks[$tag][$priority][] = $callable;
-        ksort($this->callbacks[$tag], SORT_NUMERIC);
+        if (!isset(ZeroMass::$singleton->callbacks[$tag])) ZeroMass::$singleton->callbacks[$tag] = array();
+        if (!isset(ZeroMass::$singleton->callbacks[$tag][$priority])) ZeroMass::$singleton->callbacks[$tag][$priority] = array();
+        ZeroMass::$singleton->callbacks[$tag][$priority][] = $callable;
+        ksort(ZeroMass::$singleton->callbacks[$tag], SORT_NUMERIC);
     }/*}}}*/
     public function do_callback_array($tag, $args) {/*{{{*/
         array_unshift($args, $tag);
-        return call_user_func_array(array($this, 'do_callback'), $args);
+        return call_user_func_array(array(ZeroMass::$singleton, 'do_callback'), $args);
     }/*}}}*/
     public function do_callback($tag) {/*{{{*/
         $arguments = func_get_args();
         array_shift($arguments); // Get rid of the $tag argument
         $result = count($arguments) > 0 ? $arguments[0] : null;
-        if (!isset($this->callbacks[$tag])) return $result;
-        foreach ($this->callbacks[$tag] as $priority => $callbackArray) foreach ($callbackArray as $callback) {
+        if (!isset(ZeroMass::$singleton->callbacks[$tag])) return $result;
+        foreach (ZeroMass::$singleton->callbacks[$tag] as $priority => $callbackArray) foreach ($callbackArray as $callback) {
             $arguments[0] = $result;
             try {
                 $result = call_user_func_array($callback, $arguments);
             } catch (\Exception $e) {
-                if ($this->exceptionRecurseSemaphore) throw new ZeroMassException($e);
+                if (ZeroMass::$singleton->exceptionRecurseSemaphore) throw new ZeroMassException($e);
                 $exceptionArgs = $arguments;
                 array_unshift($exceptionArgs, $tag);
                 array_unshift($exceptionArgs, $e);
-                $this->exceptionRecurseSemaphore = true;
+                ZeroMass::$singleton->exceptionRecurseSemaphore = true;
                 /*#
                  * A callback threw an exception. Allow plugins to handle the exception.
                  *
@@ -159,7 +191,7 @@ class ZeroMass {
                  * @return mixed Either an exception or a result to be used to continue processing
                  */
                 $e = \ZeroMass::getInstance()->do_callback_array('com.sergiosgc.zeromass.hook.exception', $exceptionArgs);
-                $this->exceptionRecurseSemaphore = false;
+                ZeroMass::$singleton->exceptionRecurseSemaphore = false;
                 if ($e instanceof \Exception) throw new ZeroMassException($e);
                 $result = $e;
             }
@@ -170,21 +202,21 @@ class ZeroMass {
     public function unregister_callback($tag, $callable, $priority = 10) {/*{{{*/
         if (!is_callable($callable)) throw new ZeroMassException('Non-callable passed as $callable argument');
 
-        if (!isset($this->callbacks[$tag])) return;
-        if (!isset($this->callbacks[$tag][$priority])) return;
-        foreach (array_reverse(array_keys($this->callbacks[$tag][$priority])) as $index) {
-            if ($this->callbacks[$tag][$priority][$index] == $callable) unset($this->callbacks[$tag][$priority][$index]);
+        if (!isset(ZeroMass::$singleton->callbacks[$tag])) return;
+        if (!isset(ZeroMass::$singleton->callbacks[$tag][$priority])) return;
+        foreach (array_reverse(array_keys(ZeroMass::$singleton->callbacks[$tag][$priority])) as $index) {
+            if (ZeroMass::$singleton->callbacks[$tag][$priority][$index] == $callable) unset(ZeroMass::$singleton->callbacks[$tag][$priority][$index]);
         }
     }/*}}}*/
     public function unregister_all_callbacks($tag, $priority = false) {/*{{{*/
-        if (!isset($this->callbacks[$tag])) return;
+        if (!isset(ZeroMass::$singleton->callbacks[$tag])) return;
 
         if ($priority === false) {
-            unset($this->callbacks[$tag]);
+            unset(ZeroMass::$singleton->callbacks[$tag]);
         } else {
-            if (!isset($this->callbacks[$tag][$priority])) return;
-            unset($this->callbacks[$tag][$priority]);
-            if (count($this->callbacks[$tag]) == 0) unset($this->callbacks[$tag]);
+            if (!isset(ZeroMass::$singleton->callbacks[$tag][$priority])) return;
+            unset(ZeroMass::$singleton->callbacks[$tag][$priority]);
+            if (count(ZeroMass::$singleton->callbacks[$tag]) == 0) unset(ZeroMass::$singleton->callbacks[$tag]);
         }
     }/*}}}*/
 
