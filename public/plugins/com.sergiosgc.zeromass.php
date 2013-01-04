@@ -13,7 +13,7 @@ class ZeroMass {
     public $publicDir = null;
     public $pluginDir = null;
     protected $exceptionRecurseSemaphore = false;
-    public function __construct() {/*{{{*/
+    protected function __construct() {/*{{{*/
         ZeroMass::$singleton = $this;
         /*#
          * Callback that occurs at the very start of ZeroMass application flow.
