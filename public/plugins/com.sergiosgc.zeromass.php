@@ -13,8 +13,17 @@ class ZeroMass {
     public $publicDir = null;
     public $pluginDir = null;
     protected $exceptionRecurseSemaphore = false;
+    protected $toSort = array();
+    protected $debugHooks = false;
+    protected $hookDebugOutput = "Hook call trace:\n";
     protected function __construct() {/*{{{*/
         ZeroMass::$singleton = $this;
+        if ($this->debugHooks) {
+            ob_start(function() { 
+                header('Content-type: text/plain');
+                return $this->hookDebugOutput;
+            });
+        }
         /*#
          * Callback that occurs at the very start of ZeroMass application flow.
          *
@@ -156,19 +165,58 @@ class ZeroMass {
         if (!isset(ZeroMass::$singleton->callbacks[$tag])) ZeroMass::$singleton->callbacks[$tag] = array();
         if (!isset(ZeroMass::$singleton->callbacks[$tag][$priority])) ZeroMass::$singleton->callbacks[$tag][$priority] = array();
         ZeroMass::$singleton->callbacks[$tag][$priority][] = $callable;
-        ksort(ZeroMass::$singleton->callbacks[$tag], SORT_NUMERIC);
+        $this->toSort[$tag] = true;
     }/*}}}*/
     public function do_callback_array($tag, $args) {/*{{{*/
         array_unshift($args, $tag);
         return call_user_func_array(array(ZeroMass::$singleton, 'do_callback'), $args);
     }/*}}}*/
     public function do_callback($tag) {/*{{{*/
+        static $hookDebugPrefix = ' ';
         $arguments = func_get_args();
         array_shift($arguments); // Get rid of the $tag argument
         $result = count($arguments) > 0 ? $arguments[0] : null;
+        if ($this->debugHooks) {
+            $this->hookDebugOutput .= $hookDebugPrefix . '[h]' . $tag;
+            foreach($arguments as $arg) {
+                if (is_object($arg)) {
+                    $this->hookDebugOutput .= ' ' . get_class($arg);
+                } elseif (is_bool($arg)) {
+                    $this->hookDebugOutput .= $arg ? ' true' : ' false';
+                } elseif (is_string($arg)) {
+                    $s = (string) $arg;
+                    if (strlen($s) > 13) $s = substr($arg, 0, 10) . '...';
+                    $this->hookDebugOutput .= ' ' . $s;
+                } elseif (is_array($arg)) {
+                    $this->hookDebugOutput .= ' array[' . count($arg) . ']';
+                } elseif (is_null($arg)) {
+                    $this->hookDebugOutput .= ' null';
+                } else {
+                    $this->hookDebugOutput .= ' ' . $arg;
+                }
+            }
+            $this->hookDebugOutput .= "\n";
+        }
         if (!isset(ZeroMass::$singleton->callbacks[$tag])) return $result;
+        if (isset($toSort[$tag])) {
+            ksort(ZeroMass::$singleton->callbacks[$tag], SORT_NUMERIC);
+            unset($toSort[$tag]);
+        }
+        if ($this->debugHooks) {
+            $hookDebugPrefix .= ' ';
+        }
         foreach (ZeroMass::$singleton->callbacks[$tag] as $priority => $callbackArray) foreach ($callbackArray as $callback) {
             $arguments[0] = $result;
+            if ($this->debugHooks) {
+                $this->hookDebugOutput .= $hookDebugPrefix . '[c]';
+                $hookDebugPrefix .= ' | ';
+                if (is_array($callback)) {
+                    $this->hookDebugOutput .= (is_string($callback[0]) ? $callback[0] : get_class($callback[0]) ) . '::' . $callback[1] . '()';
+                } else {
+                    $this->hookDebugOutput .= $callback . '()';
+                }
+                $this->hookDebugOutput .= "\n";
+            }
             try {
                 $result = call_user_func_array($callback, $arguments);
             } catch (\Exception $e) {
@@ -195,6 +243,29 @@ class ZeroMass {
                 if ($e instanceof \Exception) throw new ZeroMassException($e);
                 $result = $e;
             }
+            if ($this->debugHooks) {
+                $hookDebugPrefix = substr($hookDebugPrefix, 0, -3);
+                $this->hookDebugOutput .= $hookDebugPrefix . ' \->';
+                if (is_object($result)) {
+                    $this->hookDebugOutput .= ' ' . get_class($result);
+                } elseif (is_bool($result)) {
+                    $this->hookDebugOutput .= $result ? ' true' : ' false';
+                } elseif (is_string($result)) {
+                    $s = (string) $result;
+                    if (strlen($s) > 13) $s = substr($result, 0, 10) . '...';
+                    $this->hookDebugOutput .= ' ' . $s;
+                } elseif (is_array($result)) {
+                    $this->hookDebugOutput .= ' array[' . count($result) . ']';
+                } elseif (is_null($result)) {
+                    $this->hookDebugOutput .= ' null';
+                } else {
+                    $this->hookDebugOutput .= ' ' . $result;
+                }
+                $this->hookDebugOutput .= "\n";
+            }
+        }
+        if ($this->debugHooks) {
+            $hookDebugPrefix = substr($hookDebugPrefix, 0, -1);
         }
         return $result;
     }/*}}}*/
