@@ -198,9 +198,9 @@ class ZeroMass {
             $this->hookDebugOutput .= "\n";
         }
         if (!isset(ZeroMass::$singleton->callbacks[$tag])) return $result;
-        if (isset($toSort[$tag])) {
+        if (isset($this->toSort[$tag])) {
             ksort(ZeroMass::$singleton->callbacks[$tag], SORT_NUMERIC);
-            unset($toSort[$tag]);
+            unset($this->toSort[$tag]);
         }
         if ($this->debugHooks) {
             $hookDebugPrefix .= ' ';
