@@ -220,7 +220,11 @@ class ZeroMass {
             try {
                 $result = call_user_func_array($callback, $arguments);
             } catch (\Exception $e) {
-                if (ZeroMass::$singleton->exceptionRecurseSemaphore) throw new ZeroMassException($e);
+                if (ZeroMass::$singleton->exceptionRecurseSemaphore) throw new ZeroMassException(sprintf('Exception handling hook %s using %s',
+                    $tag,
+                    (is_array($callback) ? ((is_string($callback[0]) ? $callback[0] : get_class($callback[0])) . '::' . $callback[1]) : $callback)) . '()',
+                    0,
+                    $e);
                 $exceptionArgs = $arguments;
                 array_unshift($exceptionArgs, $tag);
                 array_unshift($exceptionArgs, $e);
@@ -236,11 +240,16 @@ class ZeroMass {
                  * receives all arguments passed on to the original hook
                  *
                  * @param Exception The thrown exception
+                 * @param tag The hook being handled
                  * @return mixed Either an exception or a result to be used to continue processing
                  */
                 $e = \ZeroMass::getInstance()->do_callback_array('com.sergiosgc.zeromass.hook.exception', $exceptionArgs);
                 ZeroMass::$singleton->exceptionRecurseSemaphore = false;
-                if ($e instanceof \Exception) throw new ZeroMassException($e);
+                if ($e instanceof \Exception) throw new ZeroMassException(sprintf('Exception handling hook %s using %s',
+                    $tag,
+                    (is_array($callback) ? ((is_string($callback[0]) ? $callback[0] : get_class($callback[0])) . '::' . $callback[1]) : $callback)) . '()',
+                    0,
+                    $e);
                 $result = $e;
             }
             if ($this->debugHooks) {
