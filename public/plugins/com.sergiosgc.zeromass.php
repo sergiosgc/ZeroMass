@@ -6,6 +6,8 @@ class ZeroMassStartupException extends ZeroMassException { }
 class ZeroMassNotFoundException extends ZeroMassException { }
 
 class ZeroMass {
+    protected $debugHooks = null;
+
     public static $singleton = null;
     public $callbacks = array();
     public $apiSlots = array();
@@ -14,14 +16,23 @@ class ZeroMass {
     public $pluginDir = null;
     protected $exceptionRecurseSemaphore = false;
     protected $toSort = array();
-    protected $debugHooks = false;
     protected $hookDebugOutput = "Hook call trace:\n";
     protected function __construct() {/*{{{*/
         ZeroMass::$singleton = $this;
+        if (is_null($this->debugHooks)) {
+            $this->debugHooks = false;
+            if (file_exists(dirname(dirname(dirname(dirname(__FILE__)))) . '/private/debugHooks')) $this->debugHooks = true;
+            if (file_exists(dirname(dirname(dirname(dirname(__FILE__)))) . '/private/debugHooksOnRequest')) {
+                $this->debugHooks = array_key_exists('debugHooks', $_REQUEST);
+                unset($_REQUEST['debugHooks']);
+                unset($_POST['debugHooks']);
+                unset($_GET['debugHooks']);
+            }
+        }
         if ($this->debugHooks) {
-            ob_start(function() { 
+            ob_start(function($content) { 
                 header('Content-type: text/plain');
-                return $this->hookDebugOutput;
+                return $this->hookDebugOutput . "\n------- page output --------\n" . $content;
             });
         }
         /*#
