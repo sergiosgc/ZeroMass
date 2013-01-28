@@ -319,6 +319,7 @@ class ZeroMass {
          */
         try {
             $handled = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.answerPage', $handled);
+            if (!$handled) throw new \ZeroMassNotFoundException($_SERVER['REQUEST_URI'] . ' not found');
         } catch (Exception $e) {
             /**
              * An exception was thrown when handling the request
