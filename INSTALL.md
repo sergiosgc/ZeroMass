@@ -44,7 +44,9 @@ For nginx + php-fpm, add this virtualhost:
       }
     }
    
-If you are on Ubuntu or Debian or any Debian based distro, add the contents above to a file named `/etc/nginx/sites-enabled/myapp.conf`.
+If you are on Ubuntu or Debian or any Debian based distro, add the contents above to a file named `/etc/nginx/sites-enabled/myapp.conf`. 
+
+Restart your webserver (i.e. `sudo service nginx restart`)
 
 It goes without saying: replace `myapp` with a meaningful name for your application.
 
