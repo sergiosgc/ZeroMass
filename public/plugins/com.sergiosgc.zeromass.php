@@ -41,6 +41,13 @@ class ZeroMass {
          * At this point, no plugin is yet loaded. This is the very first callback.
          */
         \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.before__construct');
+        
+        $candidate = dirname(__FILE__);
+        while ($candidate != "" && $candidate != "/" && $candidate != basename($candidate) && basename($candidate) != 'public') {
+            $candidate = dirname($candidate);
+        }
+        $candidate = dirname($candidate);
+        if (!is_dir($candidate) || !is_readable($candidate) || $candidate == '/') $candidate = null;
         /*#
          * Allow for the application root dir to be altered
          *
@@ -51,7 +58,8 @@ class ZeroMass {
          * @param string Full path to the application root directory
          * @return string Full path to the application root directory
          */
-        $this->appRootDir = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.appRootDir', realpath(dirname(dirname(dirname(dirname(__FILE__))))));
+        $this->appRootDir = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.appRootDir', $candidate);
+        if (!is_dir($this->appRootDir) || !is_readable($this->appRootDir)) throw new Exception('Unable to determine appRootDir');
         /*#
          * Allow for the application public dir to be altered
          *
@@ -81,9 +89,9 @@ class ZeroMass {
          * @param string Full path to the application plugin directory
          * @return string Full path to the application plugin directory
          */
-        $this->pluginDir = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.appPluginDir', realpath(dirname(dirname(__FILE__)) . '/plugins'));
+        $this->pluginDir = \ZeroMass::getInstance()->do_callback('com.sergiosgc.zeromass.appPluginDir', realpath(dirname(__FILE__)));
 
-        if ($this->pluginDir === false) throw new ZeroMassStartupException('ZeroMass plugin directory not found. Expected at: ' . $this->publicDir . '/plugins');
+        if ($this->pluginDir === false) throw new ZeroMassStartupException('ZeroMass plugin directory not found.');
         $this->loadPlugins();
         /*#
          * Callback that occurs just before the end of the ZeroMass constructor.
@@ -173,6 +181,13 @@ class ZeroMass {
 
     public function register_callback($tag, $callable, $priority = 10) {/*{{{*/
         if (!is_callable($callable)) throw new ZeroMassException('Non-callable passed as $callable argument');
+        if (is_array($tag)) {
+            $tags = $tag;
+            foreach ($tags as $tag) {
+                $this->register_callback($tag, $callable, $priority);
+            }
+            return;
+        }
         if (!isset(ZeroMass::$singleton->callbacks[$tag])) ZeroMass::$singleton->callbacks[$tag] = array();
         if (!isset(ZeroMass::$singleton->callbacks[$tag][$priority])) ZeroMass::$singleton->callbacks[$tag][$priority] = array();
         ZeroMass::$singleton->callbacks[$tag][$priority][] = $callable;
@@ -224,7 +239,15 @@ class ZeroMass {
                 if (is_array($callback)) {
                     $this->hookDebugOutput .= (is_string($callback[0]) ? $callback[0] : get_class($callback[0]) ) . '::' . $callback[1] . '()';
                 } else {
-                    $this->hookDebugOutput .= $callback . '()';
+                    if (is_object($callback) && $callback instanceof Closure) {
+                        $info = new ReflectionFunction($callback);
+                        $filename = $info->getFilename();
+                        $line = $info->getStartLine();
+                        if (strpos($filename, $this->publicDir) === 0) $filename = substr($filename, strlen($this->publicDir) + 1);
+                        $this->hookDebugOutput .= sprintf('closure[@%s+%d]()', $filename, $line);
+                    } else {
+                        $this->hookDebugOutput .= $callback . '()';
+                    }
                 }
                 $this->hookDebugOutput .= "\n";
             }
@@ -258,7 +281,7 @@ class ZeroMass {
                 ZeroMass::$singleton->exceptionRecurseSemaphore = false;
                 if ($e instanceof \Exception) throw new ZeroMassException(sprintf('Exception handling hook %s using %s',
                     $tag,
-                    (is_array($callback) ? ((is_string($callback[0]) ? $callback[0] : get_class($callback[0])) . '::' . $callback[1]) : $callback)) . '()',
+                    $this->callbackToString($callback)),
                     0,
                     $e);
                 $result = $e;
@@ -289,10 +312,29 @@ class ZeroMass {
         }
         return $result;
     }/*}}}*/
+    protected function callbackToString($callback) {/*{{{*/
+        if (is_string($callback)) return $callback . '()';
+        if (is_array($callback)) {
+            if (is_string($callback[0])) return $callback[0] . '::' . $callback[1] . '()';
+            return get_class($callback[0]) . '->' . $callback[1] . '()';
+        }
+        $info = new ReflectionFunction($callback);
+        $fileName = $info->getFileName();
+        if (substr($fileName, 0, strlen($this->publicDir)) == $this->publicDir) $fileName = '[publicDir]' . substr($fileName, strlen($this->publicDir));
+        if (substr($fileName, 0, strlen($this->privateDir)) == $this->privateDir) $fileName = '[privateDir]' . substr($fileName, strlen($this->privateDir));
+        return '{closure}@' . $fileName . ' +' . $info->getStartLine();
+    }/*}}}*/
 
     public function unregister_callback($tag, $callable, $priority = 10) {/*{{{*/
         if (!is_callable($callable)) throw new ZeroMassException('Non-callable passed as $callable argument');
 
+        if (is_array($tag)) {
+            $tags = $tag;
+            foreach ($tags as $tag) {
+                $this->unregister_callback($tag, $callable, $priority);
+            }
+            return;
+        }
         if (!isset(ZeroMass::$singleton->callbacks[$tag])) return;
         if (!isset(ZeroMass::$singleton->callbacks[$tag][$priority])) return;
         foreach (array_reverse(array_keys(ZeroMass::$singleton->callbacks[$tag][$priority])) as $index) {
@@ -302,6 +344,13 @@ class ZeroMass {
     public function unregister_all_callbacks($tag, $priority = false) {/*{{{*/
         if (!isset(ZeroMass::$singleton->callbacks[$tag])) return;
 
+        if (is_array($tag)) {
+            $tags = $tag;
+            foreach ($tags as $tag) {
+                $this->unregister_all_callbacks($tag, $priority);
+            }
+            return;
+        }
         if ($priority === false) {
             unset(ZeroMass::$singleton->callbacks[$tag]);
         } else {
@@ -346,10 +395,21 @@ class ZeroMass {
         }
     }/*}}}*/
 }
+function zm_register($tag, $callable, $priority = 10) {
+    return ZeroMass::getInstance()->register_callback($tag, $callable, $priority);
+}
+function zm_fire($tag) {
+    return call_user_func_array(array(ZeroMass::getInstance(), 'do_callback'), func_get_args());
+}
+
+
+
+
 ZeroMass::getInstance();
 if (isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) == realpath(__FILE__)) {
     ZeroMass::getInstance()->answerPage();
 }
+
 /*#
  * ZeroMass Core
  *
