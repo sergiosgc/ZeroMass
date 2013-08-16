@@ -21,8 +21,8 @@ class ZeroMass {
         ZeroMass::$singleton = $this;
         if (is_null($this->debugHooks)) {
             $this->debugHooks = false;
-            if (file_exists(dirname(dirname(dirname(dirname(__FILE__)))) . '/private/debugHooks')) $this->debugHooks = true;
-            if (file_exists(dirname(dirname(dirname(dirname(__FILE__)))) . '/private/debugHooksOnRequest')) {
+            if (file_exists(dirname(dirname(dirname(__FILE__))) . '/private/debugHooks')) $this->debugHooks = true;
+            if (file_exists(dirname(dirname(dirname(__FILE__))) . '/private/debugHooksOnRequest')) {
                 $this->debugHooks = array_key_exists('debugHooks', $_REQUEST);
                 unset($_REQUEST['debugHooks']);
                 unset($_POST['debugHooks']);
