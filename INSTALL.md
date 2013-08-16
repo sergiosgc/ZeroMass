@@ -23,7 +23,7 @@ Naturally, replace `myapp` with a meaningful name for your application.
 
 ## Step 3. Configure your webserver
 
-The webserver should serve any file that exists on the public directory of the app, it should interpret PHP files, and whenever a file does not exist, it should serve public/zeromass/com.sergiosgc.zeromass.php. 
+The webserver should serve any file that exists on the public directory of the app, it should interpret PHP files, and whenever a file does not exist, it should serve `/zeromass/com.sergiosgc.zeromass.php`. 
 
 For nginx + php-fpm, add this virtualhost:
 
