@@ -511,9 +511,5 @@ You've reached the end of the documentation. The final chapter. You know
 the butler did it, in the living room, with poison (a feminine murder 
 weapon).
 
-I suggest you [install](https://github.com/sergiosgc/ZeroMass-Plugins) `com.sergiosgc.pluginManager`. It is a ... plugin manager
-for ZeroMass (surprising!), with cool plugin documentation abilities and 
-repository listing, where you can find more plugins.
+Head on over to the [installation instructions](INSTALL.md).
 
-Or start writing your own plugins. Drop me a note if you publish them, I'd 
-like to list known plugins somewhere and ease the search for ZeroMass plugins.
